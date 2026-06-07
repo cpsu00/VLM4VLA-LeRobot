@@ -16,7 +16,7 @@ Rather than writing custom trainers or modifying LeRobot's core training loop, w
 
 * **`policies/robovlm/`**
   * `modeling_robovlm.py`: Contains the `RoboVLMPolicy` subclass of `PreTrainedPolicy`. It embeds text/vision tokens via `Qwen2.5-VL-3B-Instruct`, appends learnable action queries at the end of the token sequence, feeds the corresponding hidden states into `FCDecoder`, and outputs continuous arm actions (tanh-activated) and gripper states.
-  * `configuration_robovlm.py`: Contains `RoboVLMConfig`. Note that it implements a no-op `validate_features()` method to satisfy the abstract requirements of LeRobot's `PreTrainedConfig`.
+  * `configuration_robovlm.py`: Contains `RoboVLMConfig`. It implements a no-op `validate_features()` method to satisfy the abstract requirements of LeRobot's `PreTrainedConfig`, and configuration flags like `use_hand_rgb`.
   * `processor_robovlm.py`: Standard minimal pre- and post-processors to feed raw observations and retrieve policy outputs.
 * **`envs/calvin.py`**
   * Implements `CalvinEnv` wrapping the Calvin play table simulator.
@@ -43,8 +43,15 @@ Rather than writing custom trainers or modifying LeRobot's core training loop, w
 * **Calvin convention**: Relative gripper actions range from `-1.0` (closed) to `1.0` (open).
 * **Converter Handling**: `convert_calvin_to_lerobot.py` rescales raw Calvin gripper labels:
   $$\text{action}_{\text{lerobot}} = \frac{\text{action}_{\text{calvin}} + 1.0}{2.0}$$
-* **Environment Handling**: `CalvinEnv.step()` correctly remaps actions back:
-  $$\text{action}_{\text{calvin}} = \text{action}_{\text{lerobot}} \times 2.0 - 1.0$$
+* **Environment Gripper Binarization**: To strictly follow the VLM4VLA evaluation benchmark, gripper actions are binarized inside `CalvinEnv.step()` to exactly `1.0` or `-1.0` depending on whether the policy's gripper action is greater than `0.5`:
+  $$\text{action}_{\text{calvin}} = 1.0 \quad \text{if} \quad \text{action}_{\text{lerobot}} > 0.5 \quad \text{else} \quad -1.0$$
+
+### Camera Mapping & Hand Camera (Wrist Camera) Config
+* **Default Setup**: By default, VLM4VLA's Calvin baseline configurations set `"use_hand_rgb": false`, processing only the static camera feed.
+* **Registry Alignment**: We align the camera features to use `static` and `gripper` keys. The environment config registers:
+  * `"pixels/static"` mapped to `observation.images.static`.
+  * `"pixels/gripper"` mapped to `observation.images.gripper`.
+* **Policy Configuration**: To strictly match the original setup, `RoboVLMConfig` defaults `use_hand_rgb` to `False`. When `False`, it excludes the gripper camera from Qwen's inputs and prompts, only feeding the static camera feed. To enable wrist camera inputs, set `policy.use_hand_rgb=True`.
 
 ### Sequential Evaluation Metric
 During evaluation (`lerobot-eval`), the logged metric `eval_tracker.pc_success` represents the percentage of completed sequences where **all 5 tasks** were successfully executed in a row without a single failure or reset.
