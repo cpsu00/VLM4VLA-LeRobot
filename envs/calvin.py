@@ -35,8 +35,8 @@ class CalvinEnv(gym.Env):
         
         if camera_name_mapping is None:
             camera_name_mapping = {
-                "static": "image",
-                "gripper": "image2",
+                "static": "static",
+                "gripper": "gripper",
             }
         self.camera_name_mapping = camera_name_mapping
         
@@ -140,7 +140,7 @@ class CalvinEnv(gym.Env):
     def step(self, action):
         self._ensure_env()
         calvin_action = action.copy()
-        calvin_action[-1] = action[-1] * 2.0 - 1.0
+        calvin_action[-1] = 1.0 if action[-1] > 0.5 else -1.0
         
         raw_obs, _, _, current_info = self._env.step(calvin_action)
         self.active_subtask_steps += 1
