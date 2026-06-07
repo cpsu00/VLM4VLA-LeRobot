@@ -175,24 +175,30 @@ class RoboVLMPolicy(PreTrainedPolicy):
         
         # LeRobot images are in range [0, 1] and shape (bs, n_obs_steps, 3, H, W)
         static_imgs = batch["observation.images.static"]
-        gripper_imgs = batch["observation.images.gripper"]
         
         # Convert to PIL images for the HF Qwen processor
         images_list = []
         for i in range(bs):
             img_static = TF.to_pil_image(static_imgs[i, -1].cpu())
-            img_gripper = TF.to_pil_image(gripper_imgs[i, -1].cpu())
-            images_list.append([img_static, img_gripper])
+            if self.config.use_hand_rgb:
+                img_gripper = TF.to_pil_image(batch["observation.images.gripper"][i, -1].cpu())
+                images_list.append([img_static, img_gripper])
+            else:
+                images_list.append([img_static])
             
         tasks = batch["task"]
         if isinstance(tasks, str):
             tasks = [tasks]
             
+        if self.config.use_hand_rgb:
+            image_placeholder = "<|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|>"
+        else:
+            image_placeholder = "<|vision_start|><|image_pad|><|vision_end|>"
+            
         texts = [
             "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
             "<|im_start|>user\n"
-            "<|vision_start|><|image_pad|><|vision_end|>"
-            "<|vision_start|><|image_pad|><|vision_end|>"
+            f"{image_placeholder}"
             f"What action should the robotic arm take to {task}<|im_end|>\n"
             "<|im_start|>assistant\n"
             for task in tasks

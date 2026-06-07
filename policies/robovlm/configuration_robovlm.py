@@ -36,6 +36,7 @@ class RoboVLMConfig(PreTrainedConfig):
     vlm_model_name: str = "Qwen/Qwen2.5-VL-3B-Instruct"
     load_vlm_weights: bool = True
     freeze_backbone: bool = False
+    use_hand_rgb: bool = False
     
     # Tokenizer / Text length
     tokenizer_max_length: int = 256
